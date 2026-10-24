@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Beach Explorer: 20 Jumps Challenge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Nunito', sans-serif;
+            background-color: #74ccf4;
+            touch-action: none;
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI Overlays & Claymorphism */
+        .overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 119, 182, 0.4);
+            backdrop-filter: blur(5px);
+            z-index: 50;
+            transition: opacity 0.3s ease;
+        }
+
+        .clay-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 2.5rem;
+            box-shadow: 
+                15px 15px 30px rgba(0, 80, 150, 0.2),
+                -10px -10px 20px rgba(255, 255, 255, 0.9),
+                inset 8px 8px 20px rgba(255, 255, 255, 1),
+                inset -8px -8px 20px rgba(0, 0, 0, 0.05);
+            border: 4px solid rgba(255,255,255,0.8);
+            padding: 2.5rem;
+            text-align: center;
+            max-width: 90%;
+            width: 550px;
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .clay-input {
+            width: 100%;
+            padding: 1rem 1.5rem;
+            border-radius: 1.5rem;
+            border: none;
+            background: #f0f8ff;
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #1e3a8a;
+            box-shadow: inset 5px 5px 10px rgba(0,0,0,0.1), inset -5px -5px 10px rgba(255,255,255,1);
+            outline: none;
+            margin-bottom: 1.5rem;
+            transition: all 0.2s;
+        }
+        
+        .clay-input:focus {
+            box-shadow: inset 8px 8px 15px rgba(0,0,0,0.15), inset -8px -8px 15px rgba(255,255,255,1);
+            background: #e6f4ff;
+        }
+
+        .clay-btn {
+            background: #ffb703; 
+            color: #d00000;
+            border-radius: 1.5rem;
+            box-shadow: 
+                6px 6px 12px rgba(0, 0, 0, 0.15),
+                -6px -6px 12px rgba(255, 255, 255, 0.4),
+                inset 4px 4px 10px rgba(255, 255, 255, 0.6),
+                inset -4px -4px 10px rgba(200, 100, 0, 0.3);
+            transition: transform 0.1s, box-shadow 0.1s, background-color 0.2s;
+            cursor: pointer;
+            text-shadow: 1px 1px 0px rgba(255,255,255,0.5);
+            padding: 1rem 2rem;
+            font-size: 1.5rem;
+            font-weight: 900;
+            border: none;
+            width: 100%;
+        }
+
+        .clay-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .clay-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .clay-btn.correct { background: #06d6a0; color: white; text-shadow: none; box-shadow: inset 4px 4px 10px rgba(255,255,255,0.4), inset -4px -4px 10px rgba(0, 100, 50, 0.3); }
+        .clay-btn.wrong { background: #ef476f; color: white; text-shadow: none; animation: shake 0.4s ease;}
+
+        /* HUD & Controls */
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .hud-box {
+            background: rgba(255,255,255,0.9);
+            padding: 10px 20px;
+            border-radius: 1.5rem;
+            font-size: 1.25rem;
+            font-weight: 900;
+            color: #1e3a8a;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            backdrop-filter: blur(5px);
+            border: 3px solid white;
+        }
+
+        #jump-control {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+        
+        .jump-btn {
+            background: #06d6a0;
+            color: white;
+            font-size: 2rem;
+            padding: 1rem 3rem;
+            border-radius: 3rem;
+            border: 4px solid white;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2), inset 0 5px 10px rgba(255,255,255,0.5);
+            font-weight: 900;
+            cursor: pointer;
+            transition: all 0.1s;
+            text-transform: uppercase;
+        }
+        
+        .jump-btn:active {
+            transform: translateX(-50%) scale(0.9);
+            box-shadow: 0 5px 10px rgba(0,0,0,0.2), inset 0 5px 10px rgba(0,0,0,0.2);
+        }
+        
+        .jump-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: translateX(-50%);
+            box-shadow: none;
+        }
+
+        /* Magic Spotlight Effect */
+        #spotlight {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle, transparent 15%, rgba(0,0,0,0.7) 70%);
+            z-index: 40;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .hidden { display: none !important; }
+
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 15px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ffb703, #fb8500);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <!-- Heads Up Display -->
+    <div id="hud" class="hidden">
+        <div class="hud-box">
+            <span id="ui-name">Explorer</span><br>
+            <span id="ui-school" class="text-sm text-gray-500">School</span>
+        </div>
+        <div class="hud-box text-center">
+            <div class="text-xl">Jump: <span id="ui-jump-count" class="text-orange-500">0</span> / 20</div>
+            <div class="progress-bar-container">
+                <div id="ui-progress" class="progress-bar-fill"></div>
+            </div>
+        </div>
+        <div class="hud-box text-2xl">
+            ⭐ <span id="ui-stars">0</span>
+        </div>
+    </div>
+
+    <!-- Jump Button -->
+    <div id="jump-control" class="hidden">
+        <button id="btn-jump" class="jump-btn" onclick="initiateJump()">JUMP! 🦘</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+    <div id="spotlight"></div>
+
+    <!-- Login Screen -->
+    <div id="login-screen" class="overlay">
+        <div class="clay-card">
+            <div style="font-size: 5rem; animation: float 3s ease-in-out infinite;">🏝️</div>
+            <h1 class="text-4xl font-black text-blue-600 mb-2">Beach Explorer</h1>
+            <p class="text-lg text-gray-600 font-bold mb-6">Can you make 20 jumps across the islands?</p>
+            
+            <input type="text" id="input-name" class="clay-input" placeholder="What's your name? 🧒" autocomplete="off">
+            <input type="text" id="input-school" class="clay-input" placeholder="Your school name? 🏫" autocomplete="off">
+            
+            <button onclick="startGame()" class="clay-btn mt-2 text-2xl">START QUEST! 🧭</button>
+        </div>
+    </div>
+
+    <!-- Quiz Screen (Mid-Air) -->
+    <div id="quiz-screen" class="overlay hidden" style="background: transparent;">
+        <div class="clay-card" style="margin-top: 20vh;">
+            <div id="quiz-icon" style="font-size: 6rem; animation: float 2s infinite; line-height: 1;">❓</div>
+            <p class="text-lg text-orange-500 font-bold mb-1 uppercase tracking-widest">Mid-Air Challenge!</p>
+            <h2 id="quiz-question" class="text-2xl md:text-3xl font-black text-gray-800 mb-6 flex items-center justify-center">Question?</h2>
+            <div id="quiz-options" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <!-- Options injected by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Win Screen -->
+    <div id="win-screen" class="overlay hidden">
+        <div class="clay-card">
+            <div style="font-size: 6rem; animation: float 2s infinite;">🏆</div>
+            <h1 class="text-4xl font-black text-green-500 mb-2">Quest Complete!</h1>
+            <p class="text-xl text-gray-700 font-bold mb-4">You crossed all 20 islands!</p>
+            <div class="text-3xl font-black text-orange-500 mb-8 bg-gray-100 px-6 py-3 rounded-2xl inline-block">
+                Score: <span id="win-score">0</span> ⭐
+            </div>
+            <button onclick="location.reload()" class="clay-btn">PLAY AGAIN 🔄</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- Audio System ---
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioContext();
+
+    function playSound(type) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        const now = audioCtx.currentTime;
+
+        if (type === 'jump') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(300, now);
+            osc.frequency.exponentialRampToValueAtTime(600, now + 0.3);
+            gain.gain.setValueAtTime(0.3, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+            osc.start(now); osc.stop(now + 0.3);
+        } else if (type === 'correct') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(523.25, now); // C5
+            osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+            osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.4);
+            osc.start(now); osc.stop(now + 0.4);
+        } else if (type === 'wrong') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(200, now);
+            osc.frequency.linearRampToValueAtTime(100, now + 0.3);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.3);
+            osc.start(now); osc.stop(now + 0.3);
+        } else if (type === 'land') {
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.exponentialRampToValueAtTime(50, now + 0.1);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+            osc.start(now); osc.stop(now + 0.1);
+        } else if (type === 'win') {
+            osc.type = 'square';
+            const notes = [440, 554.37, 659.25, 880];
+            gain.gain.setValueAtTime(0.2, now);
+            notes.forEach((freq, i) => { osc.frequency.setValueAtTime(freq, now + i * 0.1); });
+            gain.gain.linearRampToValueAtTime(0, now + 0.6);
+            osc.start(now); osc.stop(now + 0.6);
+        }
+    }
+
+    // --- Quiz Data (20 Questions) ---
+    const quizBank = [
+        { q: "This animal walks sideways on the sand.", emoji: "🦀", opts: ["Crab", "Dolphin", "Seagull", "Fish"], a: 0 },
+        { q: "We build this with wet sand.", emoji: "🏰", opts: ["House", "Sandcastle", "Boat", "Tree"], a: 1 },
+        { q: "We put this on to protect our skin from the sun.", emoji: "🧴", opts: ["Sunscreen", "Water", "Ice Cream", "Juice"], a: 0 },
+        { q: "A tall tree at the beach that has coconuts.", emoji: "🌴", opts: ["Pine Tree", "Apple Tree", "Palm Tree", "Oak Tree"], a: 2 },
+        { q: "We wear these to protect our eyes from the bright sun.", emoji: "🕶️", opts: ["Hat", "Scarf", "Gloves", "Sunglasses"], a: 3 },
+        { q: "We use this tool to dig in the sand.", emoji: "🪣", opts: ["Fork", "Shovel", "Spoon", "Knife"], a: 1 },
+        { q: "A cold, sweet treat we eat on a hot day.", emoji: "🍦", opts: ["Soup", "Pizza", "Ice Cream", "Bread"], a: 2 },
+        { q: "This friendly grey animal jumps out of the water.", emoji: "🐬", opts: ["Shark", "Dolphin", "Whale", "Octopus"], a: 1 },
+        { q: "You can find this on the beach. It's hard and comes from sea animals.", emoji: "🐚", opts: ["Cloud", "Car", "Seashell", "Sun"], a: 2 },
+        { q: "We use this board to ride the ocean waves.", emoji: "🏄", opts: ["Skateboard", "Keyboard", "Blackboard", "Surfboard"], a: 3 },
+        { q: "We lay on this to dry off after swimming.", emoji: "🏖️", opts: ["Jacket", "Carpet", "Beach Towel", "Curtain"], a: 2 },
+        { q: "A sea animal shaped like a star in the sky.", emoji: "⭐", opts: ["Starfish", "Jellyfish", "Goldfish", "Sunfish"], a: 0 },
+        { q: "Clothes we wear to swim in the sea.", emoji: "🩱", opts: ["Jacket", "Swimsuit", "Jeans", "Sweater"], a: 1 },
+        { q: "A big umbrella that gives us shade on the beach.", emoji: "⛱️", opts: ["Rain Umbrella", "Beach Umbrella", "Tent", "Roof"], a: 1 },
+        { q: "A big, hard fruit with water inside, from a palm tree.", emoji: "🥥", opts: ["Apple", "Banana", "Coconut", "Orange"], a: 2 },
+        { q: "A game we play by hitting a ball over a net on the sand.", emoji: "🏐", opts: ["Football", "Tennis", "Volleyball", "Basketball"], a: 2 },
+        { q: "Light, open shoes we wear on the beach.", emoji: "🩴", opts: ["Boots", "Flip flops", "Sneakers", "Socks"], a: 1 },
+        { q: "A white bird that flies around the beach and sea.", emoji: "🐦", opts: ["Seagull", "Penguin", "Owl", "Chicken"], a: 0 },
+        { q: "A jacket you wear to stay safe and float in the water.", emoji: "🦺", opts: ["Winter Coat", "Lifejacket", "Raincoat", "Sweater"], a: 1 },
+        { q: "We use this to travel on the water.", emoji: "⛵", opts: ["Car", "Bus", "Train", "Boat"], a: 3 }
+    ];
+
+    // --- Canvas Setup ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let width, height;
+
+    function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+    }
+    window.addEventListener('resize', resize);
+
+    // --- Game State ---
+    let player = { name: "Explorer", school: "School", stars: 0 };
+    let state = 'LOGIN'; // LOGIN, IDLE, JUMPING, QUIZ, END
+    let currentIsland = 0;
+    const totalIslands = 20;
+    
+    // Camera and World
+    let cameraX = 0;
+    const islandSpacing = 400; // Distance between islands
+    let islands = [];
+    
+    // Player Character properties
+    let char = {
+        x: 0, y: 0, size: 80, emoji: '🧒',
+        startX: 0, startY: 0, targetX: 0, targetY: 0,
+        jumpProgress: 0, // 0 to 1
+        isFloating: false
+    };
+
+    let particles = [];
+
+    function setupWorld() {
+        islands = [];
+        for(let i = 0; i <= totalIslands; i++) {
+            islands.push({
+                x: i * islandSpacing,
+                y: height * 0.75 + (Math.random() * 40 - 20), // Slight height variation
+                radiusX: 120 + Math.random()*40,
+                radiusY: 40 + Math.random()*10,
+                color: (i === totalIslands) ? '#ffd166' : '#f6d365' // Last island is special
+            });
+        }
+        
+        // Initial character position (Island 0)
+        char.x = islands[0].x;
+        char.y = islands[0].y - char.size/2;
+        cameraX = char.x - width/2;
+    }
+
+    // --- Game Logic ---
+    function startGame() {
+        const nameInput = document.getElementById('input-name').value.trim();
+        const schoolInput = document.getElementById('input-school').value.trim();
+        
+        if (!nameInput) {
+            document.getElementById('input-name').style.border = '2px solid red';
+            return;
+        }
+
+        player.name = nameInput;
+        player.school = schoolInput || "Ocean Academy";
+        
+        document.getElementById('ui-name').innerText = player.name;
+        document.getElementById('ui-school').innerText = player.school;
+        
+        playSound('correct');
+        document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('hud').classList.remove('hidden');
+        document.getElementById('jump-control').classList.remove('hidden');
+        
+        setupWorld();
+        state = 'IDLE';
+    }
+
+    let jumpStartTime = 0;
+    const jumpDuration = 1000; // ms
+
+    function initiateJump() {
+        if (state !== 'IDLE' || currentIsland >= totalIslands) return;
+        
+        playSound('jump');
+        state = 'JUMPING';
+        document.getElementById('btn-jump').disabled = true;
+        
+        char.startX = char.x;
+        char.startY = char.y;
+        char.targetX = islands[currentIsland + 1].x;
+        char.targetY = islands[currentIsland + 1].y - char.size/2;
+        
+        jumpStartTime = performance.now();
+        char.isFloating = false;
+    }
+
+    function triggerQuiz() {
+        state = 'QUIZ';
+        char.isFloating = true; // Freeze in mid-air
+        
+        // Visual effects
+        document.getElementById('spotlight').style.opacity = '1';
+        
+        // Setup Quiz Data
+        const qData = quizBank[currentIsland];
+        document.getElementById('quiz-screen').classList.remove('hidden');
+        document.getElementById('quiz-icon').innerText = qData.emoji;
+        document.getElementById('quiz-question').innerText = qData.q;
+        
+        const optsContainer = document.getElementById('quiz-options');
+        optsContainer.innerHTML = '';
+
+        qData.opts.forEach((opt, idx) => {
+            const btn = document.createElement('button');
+            btn.className = 'clay-btn';
+            btn.innerText = opt;
+            btn.onclick = () => checkAnswer(idx, qData.a, btn);
+            optsContainer.appendChild(btn);
+        });
+    }
+
+    let isAnswering = false;
+    function checkAnswer(selectedIdx, correctIdx, btnElement) {
+        if(isAnswering) return;
+        isAnswering = true;
+
+        if (selectedIdx === correctIdx) {
+            // Correct
+            playSound('correct');
+            btnElement.classList.add('correct');
+            player.stars++;
+            document.getElementById('ui-stars').innerText = player.stars;
+            createParticles(char.x - cameraX, char.y, ['#ffb703', '#06d6a0', '#fff']);
+            
+            setTimeout(() => {
+                closeQuizAndResume();
+            }, 1000);
+        } else {
+            // Wrong
+            playSound('wrong');
+            btnElement.classList.add('wrong');
+            
+            // Highlight correct one
+            const btns = document.getElementById('quiz-options').children;
+            btns[correctIdx].classList.add('correct');
+            
+            // We force them to continue after seeing correct answer
+            setTimeout(() => {
+                closeQuizAndResume();
+            }, 1500);
+        }
+    }
+
+    function closeQuizAndResume() {
+        document.getElementById('quiz-screen').classList.add('hidden');
+        document.getElementById('spotlight').style.opacity = '0';
+        isAnswering = false;
+        
+        // Unfreeze time, adjust start time so animation continues smoothly from progress=0.5
+        char.isFloating = false;
+        jumpStartTime = performance.now() - (jumpDuration * 0.5);
+        state = 'JUMPING_DOWN'; 
+    }
+
+    function createParticles(x, y, colors) {
+        // Adjust x to world coordinates
+        const worldX = x + cameraX;
+        for(let i=0; i<30; i++) {
+            particles.push({
+                x: worldX, y: y,
+                vx: (Math.random() - 0.5) * 400,
+                vy: (Math.random() - 1) * 400,
+                life: 1.5,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                size: Math.random() * 8 + 4
+            });
+        }
+    }
+
+    function completeGame() {
+        state = 'END';
+        playSound('win');
+        document.getElementById('jump-control').classList.add('hidden');
+        document.getElementById('win-screen').classList.remove('hidden');
+        document.getElementById('win-score').innerText = player.stars;
+        createParticles(char.x, char.y, ['#ff0', '#f0f', '#0ff', '#0f0']);
+        // Continuous confetti
+        setInterval(() => {
+             createParticles(char.x + (Math.random()-0.5)*300, char.y - 300, ['#ff0', '#f0f', '#0ff', '#0f0']);
+        }, 500);
+    }
+
+    // --- Render Loop ---
+    function render(timestamp) {
+        if (width === undefined) resize();
+        
+        let dt = 1/60; // Approximate dt
+
+        // 1. Update Camera
+        if (state !== 'LOGIN') {
+            let targetCameraX = char.x - width/3; // Keep character slightly to the left
+            cameraX += (targetCameraX - cameraX) * 0.05; // Smooth follow
+        }
+
+        // 2. Draw Sky & Ocean Background
+        ctx.fillStyle = '#74ccf4'; // Sky blue
+        ctx.fillRect(0, 0, width, height);
+        
+        let time = timestamp * 0.001;
+        
+        // Sun
+        ctx.font = '100px Arial';
+        ctx.fillText("☀️", width * 0.8, height * 0.2 + Math.sin(time) * 10);
+        
+        // Clouds (Parallax)
+        ctx.font = '70px Arial';
+        ctx.fillText("☁️", ((width * 0.2 - cameraX * 0.1) % (width+200) + width+200) % (width+200) - 100, height * 0.15);
+        ctx.fillText("☁️", ((width * 0.6 - cameraX * 0.15) % (width+200) + width+200) % (width+200) - 100, height * 0.25);
+
+        // Ocean
+        ctx.fillStyle = '#0077b6';
+        ctx.beginPath();
+        ctx.moveTo(0, height * 0.55);
+        for(let i=0; i<=width; i+=50) {
+            ctx.lineTo(i, height * 0.55 + Math.sin((i + cameraX*0.2) * 0.01 + time) * 15);
+        }
+        ctx.lineTo(width, height);
+        ctx.lineTo(0, height);
+        ctx.fill();
+        
+        // Waves
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        for(let j=0; j<2; j++) {
+            ctx.beginPath();
+            ctx.moveTo(0, height * 0.6 + j*30);
+            for(let i=0; i<=width; i+=50) {
+                ctx.lineTo(i, height * 0.6 + j*30 + Math.sin((i + cameraX*0.2) * 0.02 + time + j) * 10);
+            }
+            ctx.lineTo(width, height);
+            ctx.lineTo(0, height);
+            ctx.fill();
+        }
+
+        // 3. Draw World (Islands)
+        if (state !== 'LOGIN') {
+            islands.forEach((isl, index) => {
+                const screenX = isl.x - cameraX;
+                // Only draw if visible
+                if (screenX > -300 && screenX < width + 300) {
+                    
+                    // Shadow
+                    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                    ctx.beginPath();
+                    ctx.ellipse(screenX, isl.y + 20, isl.radiusX, isl.radiusY, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Sand Island
+                    ctx.fillStyle = isl.color;
+                    ctx.beginPath();
+                    ctx.ellipse(screenX, isl.y, isl.radiusX, isl.radiusY, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Island Number / Decoration
+                    if (index > 0) {
+                        ctx.fillStyle = '#d4a373';
+                        ctx.font = 'bold 30px Nunito';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        if (index === totalIslands) {
+                            ctx.fillText("🏁", screenX, isl.y);
+                        } else {
+                            ctx.fillText(index, screenX, isl.y);
+                        }
+                    }
+                }
+            });
+
+            // 4. Update & Draw Player
+            if (state === 'JUMPING' || state === 'JUMPING_DOWN') {
+                if (!char.isFloating) {
+                    let elapsed = timestamp - jumpStartTime;
+                    char.jumpProgress = Math.min(elapsed / jumpDuration, 1);
+                    
+                    // X position (Linear interpolation)
+                    char.x = char.startX + (char.targetX - char.startX) * char.jumpProgress;
+                    
+                    // Y position (Parabola)
+                    const jumpHeight = 250;
+                    char.y = char.startY + (char.targetY - char.startY) * char.jumpProgress 
+                             - Math.sin(char.jumpProgress * Math.PI) * jumpHeight;
+
+                    // Trigger Quiz at apex (progress >= 0.5)
+                    if (state === 'JUMPING' && char.jumpProgress >= 0.5) {
+                        triggerQuiz();
+                    }
+
+                    // Landed
+                    if (char.jumpProgress >= 1) {
+                        state = 'IDLE';
+                        playSound('land');
+                        createParticles(char.x, char.y, ['#f6d365', '#e2c050']); // Sand splash
+                        
+                        currentIsland++;
+                        document.getElementById('ui-jump-count').innerText = currentIsland;
+                        document.getElementById('ui-progress').style.width = `${(currentIsland/totalIslands)*100}%`;
+                        
+                        if (currentIsland >= totalIslands) {
+                            completeGame();
+                        } else {
+                            document.getElementById('btn-jump').disabled = false;
+                        }
+                    }
+                }
+            } else if (state === 'IDLE' || state === 'END') {
+                // Bobbing animation while standing
+                char.y = islands[currentIsland].y - char.size/2 + Math.sin(time*5)*5;
+            }
+
+            // Draw Player Character
+            ctx.save();
+            const charScreenX = char.x - cameraX;
+            ctx.translate(charScreenX, char.y);
+            
+            // Rotate slightly if jumping
+            if (state === 'JUMPING' || state === 'JUMPING_DOWN') {
+                ctx.rotate(Math.sin(char.jumpProgress * Math.PI * 2) * 0.2);
+            }
+            
+            // Shadow under player
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.beginPath();
+            ctx.ellipse(0, char.size/2, char.size*0.4, char.size*0.1, 0, 0, Math.PI*2);
+            ctx.fill();
+
+            // Emoji Character
+            ctx.font = `${char.size}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(char.emoji, 0, 0);
+            
+            // Draw a magical aura if floating (Quiz time)
+            if (char.isFloating) {
+                ctx.beginPath();
+                ctx.arc(0, 0, char.size, 0, Math.PI*2);
+                ctx.strokeStyle = 'rgba(255, 215, 0, 0.8)';
+                ctx.lineWidth = 5 + Math.sin(time*10)*3;
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            // 5. Update & Draw Particles
+            particles.forEach(p => {
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.vy += 800 * dt; // gravity
+                p.life -= dt;
+                
+                if(p.life > 0) {
+                    ctx.globalAlpha = Math.max(0, p.life / 1.5);
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x - cameraX, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+            particles = particles.filter(p => p.life > 0);
+            ctx.globalAlpha = 1.0;
+        }
+
+        requestAnimationFrame(render);
+    }
+
+    // Start everything
+    resize();
+    requestAnimationFrame(render);
+
+</script>
+</body>
+</html>
